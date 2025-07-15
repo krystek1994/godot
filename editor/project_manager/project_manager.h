@@ -97,6 +97,7 @@ class ProjectManager : public Control {
 	enum MainViewTab {
 		MAIN_VIEW_PROJECTS,
 		MAIN_VIEW_ASSETLIB,
+		MAIN_VIEW_KRZYSZTOF,
 		MAIN_VIEW_MAX
 	};
 
@@ -113,6 +114,8 @@ class ProjectManager : public Control {
 
 	VBoxContainer *local_projects_vb = nullptr;
 	EditorAssetLibrary *asset_library = nullptr;
+
+	VBoxContainer *krzysztof_vb = nullptr;
 
 	EditorAbout *about_dialog = nullptr;
 

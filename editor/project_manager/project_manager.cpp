@@ -1486,6 +1486,16 @@ ProjectManager::ProjectManager() {
 			filter_option->add_item(TTRC("Tags"));
 		}
 
+		krzysztof_vb = memnew(VBoxContainer);
+		krzysztof_vb->set_name("LocalKrzysztofTab");
+		_add_main_view(MAIN_VIEW_KRZYSZTOF, TTRC("Krzysztof"), Ref<Texture2D>(), krzysztof_vb);
+		{
+			Button *btn = memnew(Button);
+			btn->set_text(TTRC("Fatemeh"));
+			krzysztof_vb->add_child(btn);
+
+		}
+
 		// Project list and its sidebar.
 		{
 			HBoxContainer *project_list_hbox = memnew(HBoxContainer);
