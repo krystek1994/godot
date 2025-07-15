@@ -81,6 +81,8 @@ struct [[nodiscard]] Vector2 {
 	Vector2 normalized() const;
 	bool is_normalized() const;
 
+	void reverse();
+
 	real_t length() const;
 	real_t length_squared() const;
 	Vector2 limit_length(real_t p_len = 1.0) const;

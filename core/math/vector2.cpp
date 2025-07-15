@@ -64,6 +64,11 @@ Vector2 Vector2::normalized() const {
 	return v;
 }
 
+void Vector2::reverse() {
+	x *= -1;
+	y *= -1;
+}
+
 bool Vector2::is_normalized() const {
 	// use length_squared() instead of length() to avoid sqrt(), makes it more stringent.
 	return Math::is_equal_approx(length_squared(), 1, (real_t)UNIT_EPSILON);
