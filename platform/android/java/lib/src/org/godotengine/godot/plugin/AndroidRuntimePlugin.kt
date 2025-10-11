@@ -38,6 +38,9 @@ import org.godotengine.godot.variant.Callable
  *
  * @see <a href="https://docs.godotengine.org/en/latest/tutorials/platform/android/javaclasswrapper_and_androidruntimeplugin.html">Integrating with Android APIs</a>
  */
+
+ 
+
 class AndroidRuntimePlugin(godot: Godot) : GodotPlugin(godot) {
 	override fun getPluginName() = "AndroidRuntime"
 
@@ -67,5 +70,11 @@ class AndroidRuntimePlugin(godot: Godot) : GodotPlugin(godot) {
 	@UsedByGodot
 	fun createCallableFromGodotCallable(godotCallable: Callable): java.util.concurrent.Callable<Any> {
 		return java.util.concurrent.Callable { godotCallable.call() }
+	}
+
+	@UsedByGodot
+	fun getKrzysztof() : String {
+		// Implementation for Krzysztof
+	return "Krzysztof is here!"
 	}
 }

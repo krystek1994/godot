@@ -245,6 +245,8 @@ public:
 	String get_version_alias() const;
 	Vector<String> get_cmdline_args();
 	Vector<String> get_cmdline_user_args();
+	
+	void set_main_loop(MainLoop *p_main_loop);
 
 	Vector<String> get_video_adapter_driver_info() const;
 

@@ -340,6 +340,10 @@ void OS::alert(const String &p_alert, const String &p_title) {
 	::OS::get_singleton()->alert(p_alert, p_title);
 }
 
+void OS::set_main_loop(MainLoop *p_main_loop) {
+	::OS::get_singleton()->set_main_loop(p_main_loop);
+}
+
 void OS::crash(const String &p_message) {
 	CRASH_NOW_MSG(p_message);
 }
@@ -727,6 +731,9 @@ void OS::remove_logger(const Ref<Logger> &p_logger) {
 }
 
 void OS::_bind_methods() {
+
+	//set_main_loop(MainLoop *p_main_loop);
+	ClassDB::bind_method(D_METHOD("set_main_loop", "p_main_loop"), &OS::set_main_loop);
 	ClassDB::bind_method(D_METHOD("get_entropy", "size"), &OS::get_entropy);
 	ClassDB::bind_method(D_METHOD("get_system_ca_certificates"), &OS::get_system_ca_certificates);
 	ClassDB::bind_method(D_METHOD("get_connected_midi_inputs"), &OS::get_connected_midi_inputs);
