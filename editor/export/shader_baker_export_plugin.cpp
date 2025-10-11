@@ -54,7 +54,7 @@ bool ShaderBakerExportPlugin::_is_active(const Vector<String> &p_features) const
 	return RendererSceneRenderRD::get_singleton() != nullptr && RendererRD::MaterialStorage::get_singleton() != nullptr && p_features.has("shader_baker");
 }
 
-bool ShaderBakerExportPlugin::_initialize_container_format(const Ref<EditorExportPlatform> &p_platform, const Vector<String> &p_features) {
+bool ShaderBakerExportPlugin::_initialize_container_format(const Ref<EditorExportPlatform> &p_platform, const Vector<String> &p_features, const Ref<EditorExportPreset> &p_preset) {
 	Variant driver_variant = GLOBAL_GET("rendering/rendering_device/driver." + p_platform->get_os_name().to_lower());
 	if (!driver_variant.is_string()) {
 		driver_variant = GLOBAL_GET("rendering/rendering_device/driver");
@@ -67,7 +67,7 @@ bool ShaderBakerExportPlugin::_initialize_container_format(const Ref<EditorExpor
 
 	for (Ref<ShaderBakerExportPluginPlatform> platform : platforms) {
 		if (platform->matches_driver(shader_container_driver)) {
-			shader_container_format = platform->create_shader_container_format(p_platform);
+			shader_container_format = platform->create_shader_container_format(p_platform, get_export_preset());
 			ERR_FAIL_NULL_V_MSG(shader_container_format, false, "Unable to create shader container format for the export platform.");
 			return true;
 		}
@@ -99,7 +99,12 @@ bool ShaderBakerExportPlugin::_begin_customize_resources(const Ref<EditorExportP
 		return false;
 	}
 
-	if (!_initialize_container_format(p_platform, p_features)) {
+	if (!_initialize_container_format(p_platform, p_features, get_export_preset())) {
+		return false;
+	}
+
+	if (Engine::get_singleton()->is_generate_spirv_debug_info_enabled()) {
+		WARN_PRINT("Shader baker can't generate a compatible shader when run with --generate-spirv-debug-info. Restart the editor without this argument if you want to bake shaders.");
 		return false;
 	}
 
@@ -397,14 +402,8 @@ void ShaderBakerExportPlugin::_customize_shader_version(ShaderRD *p_shader, RID 
 
 	for (int64_t i = 0; i < variant_count; i++) {
 		int group = p_shader->get_variant_to_group(i);
-		if (p_shader->has_variant_bake_for(i)) {
-			if (!p_shader->get_variant_bake_for(i, shader_cache_platform_name + "_" + shader_cache_renderer_name + "_" + shader_container_driver) || !groups_to_compile.has(group)) {
-				continue;
-			}
-		} else {
-			if (!p_shader->is_variant_enabled(i) || !groups_to_compile.has(group)) {
-				continue;
-			}
+		if (!p_shader->is_variant_enabled(i) || !groups_to_compile.has(group)) {
+			continue;
 		}
 
 		WorkItem work_item;

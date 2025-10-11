@@ -381,7 +381,7 @@ float RichTextLabel::_resize_line(ItemFrame *p_frame, int p_line, const Ref<Font
 		l.text_buf->tab_align(tab_stops);
 	} else if (tab_size > 0) { // Align inline tabs.
 		Vector<float> tabs;
-		tabs.push_back(tab_size * p_base_font->get_char_size(' ', p_base_font_size).width);
+		tabs.push_back(MAX(1, tab_size * (p_base_font->get_char_size(' ', p_base_font_size).width + p_base_font->get_spacing(TextServer::SPACING_SPACE))));
 		l.text_buf->tab_align(tabs);
 	}
 
@@ -404,18 +404,22 @@ float RichTextLabel::_resize_line(ItemFrame *p_frame, int p_line, const Ref<Font
 					table->columns[i].width = 0;
 				}
 
+				const int available_width = p_width - theme_cache.table_h_separation * (col_count - 1);
+				int base_column_width = available_width / col_count;
+
 				for (Item *E : table->subitems) {
 					ERR_CONTINUE(E->type != ITEM_FRAME); // Children should all be frames.
 					ItemFrame *frame = static_cast<ItemFrame *>(E);
+
 					float prev_h = 0;
 					for (int i = 0; i < (int)frame->lines.size(); i++) {
 						MutexLock sub_lock(frame->lines[i].text_buf->get_mutex());
-						int w = _find_margin(frame->lines[i].from, p_base_font, p_base_font_size) + 1;
+						int w = base_column_width - frame->padding.position.x - frame->padding.size.x;
+						w = MAX(w, _find_margin(frame->lines[i].from, p_base_font, p_base_font_size) + 1);
 						prev_h = _resize_line(frame, i, p_base_font, p_base_font_size, w, prev_h);
 					}
 				}
 
-				const int available_width = p_width - theme_cache.table_h_separation * (col_count - 1);
 				_set_table_size(table, available_width);
 
 				int row_idx = (table->align_to_row < 0) ? table->rows_baseline.size() - 1 : table->align_to_row;
@@ -523,7 +527,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 		l.text_buf->tab_align(tab_stops);
 	} else if (tab_size > 0) { // Align inline tabs.
 		Vector<float> tabs;
-		tabs.push_back(tab_size * p_base_font->get_char_size(' ', p_base_font_size).width);
+		tabs.push_back(MAX(1, tab_size * (p_base_font->get_char_size(' ', p_base_font_size).width + p_base_font->get_spacing(TextServer::SPACING_SPACE))));
 		l.text_buf->tab_align(tabs);
 	}
 
@@ -589,10 +593,11 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 					String second = tx.substr(remaining_characters, -1);
 					l.text_buf->add_string(first, font, font_size, lang, it->rid);
 					l.text_buf->add_string(second, font, font_size, lang, it->rid);
+				} else {
+					l.text_buf->add_string(tx, font, font_size, lang, it->rid);
 				}
 				remaining_characters -= tx.length();
 
-				l.text_buf->add_string(tx, font, font_size, lang, it->rid);
 				txt += tx;
 				l.char_count += tx.length();
 			} break;
@@ -619,7 +624,7 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 				}
 				// Compute minimum width for each cell.
 				const int available_width = p_width - theme_cache.table_h_separation * (col_count - 1);
-
+				int base_column_width = available_width / col_count;
 				int idx = 0;
 				for (Item *E : table->subitems) {
 					ERR_CONTINUE(E->type != ITEM_FRAME); // Children should all be frames.
@@ -642,6 +647,17 @@ float RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font>
 						table->columns[column].max_width = MAX(table->columns[column].max_width, frame->lines[i].indent + std::ceil(frame->lines[i].text_buf->get_non_wrapped_size().x));
 					}
 					idx++;
+				}
+				for (Item *E : table->subitems) {
+					ERR_CONTINUE(E->type != ITEM_FRAME); // Children should all be frames.
+					ItemFrame *frame = static_cast<ItemFrame *>(E);
+
+					float prev_h = 0;
+					for (int i = 0; i < (int)frame->lines.size(); i++) {
+						int w = base_column_width - frame->padding.position.x - frame->padding.size.x;
+						w = MAX(w, _find_margin(frame->lines[i].from, p_base_font, p_base_font_size) + 1);
+						prev_h = _resize_line(frame, i, p_base_font, p_base_font_size, w, prev_h);
+					}
 				}
 
 				_set_table_size(table, available_width);
@@ -1755,9 +1771,11 @@ float RichTextLabel::_find_click_in_line(ItemFrame *p_frame, int p_line, const V
 						}
 					}
 				} else {
-					char_pos = TS->shaped_text_hit_test_position(rid, p_click.x - rect.position.x);
-					char_pos = TS->shaped_text_closest_character_pos(rid, char_pos);
-					char_clicked = true;
+					int click_char_pos = TS->shaped_text_hit_test_position(rid, p_click.x - rect.position.x);
+					if (click_char_pos != -1) {
+						char_pos = TS->shaped_text_closest_character_pos(rid, click_char_pos);
+						char_clicked = true;
+					}
 				}
 			}
 			line_clicked = true;
@@ -1819,12 +1837,12 @@ float RichTextLabel::_find_click_in_line(ItemFrame *p_frame, int p_line, const V
 						font_size = font_size_it->font_size;
 					}
 					if (rtl) {
-						stop += tab_size * font->get_char_size(' ', font_size).width;
+						stop += MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
 						if (stop > p_click.x) {
 							break;
 						}
 					} else {
-						stop -= tab_size * font->get_char_size(' ', font_size).width;
+						stop -= MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
 						if (stop < p_click.x) {
 							break;
 						}
@@ -2174,11 +2192,19 @@ void RichTextLabel::_accessibility_action_menu(const Variant &p_data) {
 }
 
 void RichTextLabel::_accessibility_scroll_down(const Variant &p_data) {
-	vscroll->set_value(vscroll->get_value() + vscroll->get_page() / 4);
+	if ((uint8_t)p_data == 0) {
+		vscroll->set_value(vscroll->get_value() + vscroll->get_page() / 4);
+	} else {
+		vscroll->set_value(vscroll->get_value() + vscroll->get_page());
+	}
 }
 
 void RichTextLabel::_accessibility_scroll_up(const Variant &p_data) {
-	vscroll->set_value(vscroll->get_value() - vscroll->get_page() / 4);
+	if ((uint8_t)p_data == 0) {
+		vscroll->set_value(vscroll->get_value() - vscroll->get_page() / 4);
+	} else {
+		vscroll->set_value(vscroll->get_value() - vscroll->get_page());
+	}
 }
 
 void RichTextLabel::_accessibility_scroll_set(const Variant &p_data) {
@@ -2443,7 +2469,7 @@ void RichTextLabel::_notification(int p_what) {
 
 			draw_style_box(theme_cache.normal_style, Rect2(Point2(), size));
 
-			if (has_focus()) {
+			if (has_focus(true)) {
 				RenderingServer::get_singleton()->canvas_item_add_clip_ignore(ci, true);
 				draw_style_box(theme_cache.focus_style, Rect2(Point2(), size));
 				RenderingServer::get_singleton()->canvas_item_add_clip_ignore(ci, false);
@@ -3271,7 +3297,7 @@ int RichTextLabel::_find_margin(Item *p_item, const Ref<Font> &p_base_font, int 
 			if (font_size_it && font_size_it->font_size > 0) {
 				font_size = font_size_it->font_size;
 			}
-			margin += tab_size * font->get_char_size(' ', font_size).width;
+			margin += MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
 
 		} else if (item->type == ITEM_LIST) {
 			Ref<Font> font = p_base_font;
@@ -3290,7 +3316,7 @@ int RichTextLabel::_find_margin(Item *p_item, const Ref<Font> &p_base_font, int 
 			if (font_size_it && font_size_it->font_size > 0) {
 				font_size = font_size_it->font_size;
 			}
-			margin += tab_size * font->get_char_size(' ', font_size).width;
+			margin += MAX(1, tab_size * (font->get_char_size(' ', font_size).width + font->get_spacing(TextServer::SPACING_SPACE)));
 		}
 
 		item = item->parent;
@@ -6568,23 +6594,36 @@ bool RichTextLabel::_is_click_inside_selection() const {
 	}
 }
 
+bool RichTextLabel::_search_table_cell(ItemTable *p_table, List<Item *>::Element *p_cell, const String &p_string, bool p_reverse_search, int p_from_line) {
+	ERR_FAIL_COND_V(p_cell->get()->type != ITEM_FRAME, false); // Children should all be frames.
+	ItemFrame *frame = static_cast<ItemFrame *>(p_cell->get());
+	if (p_from_line < 0) {
+		p_from_line = (int)frame->lines.size() - 1;
+	}
+
+	if (p_reverse_search) {
+		for (int i = p_from_line; i >= 0; i--) {
+			if (_search_line(frame, i, p_string, -1, p_reverse_search)) {
+				return true;
+			}
+		}
+	} else {
+		for (int i = p_from_line; i < (int)frame->lines.size(); i++) {
+			if (_search_line(frame, i, p_string, 0, p_reverse_search)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool RichTextLabel::_search_table(ItemTable *p_table, List<Item *>::Element *p_from, const String &p_string, bool p_reverse_search) {
 	List<Item *>::Element *E = p_from;
 	while (E != nullptr) {
-		ERR_CONTINUE(E->get()->type != ITEM_FRAME); // Children should all be frames.
-		ItemFrame *frame = static_cast<ItemFrame *>(E->get());
-		if (p_reverse_search) {
-			for (int i = (int)frame->lines.size() - 1; i >= 0; i--) {
-				if (_search_line(frame, i, p_string, -1, p_reverse_search)) {
-					return true;
-				}
-			}
-		} else {
-			for (int i = 0; i < (int)frame->lines.size(); i++) {
-				if (_search_line(frame, i, p_string, 0, p_reverse_search)) {
-					return true;
-				}
-			}
+		int from_line = p_reverse_search ? -1 : 0;
+		if (_search_table_cell(p_table, E, p_string, p_reverse_search, from_line)) {
+			return true;
 		}
 		E = p_reverse_search ? E->prev() : E->next();
 	}
@@ -6672,7 +6711,8 @@ bool RichTextLabel::search(const String &p_string, bool p_from_selection, bool p
 		char_idx = p_search_previous ? -1 : 0;
 
 		// Next, check to see if the current search result is in a table
-		if (selection.from_frame->parent != nullptr && selection.from_frame->parent->type == ITEM_TABLE) {
+		bool in_table = selection.from_frame->parent != nullptr && selection.from_frame->parent->type == ITEM_TABLE;
+		if (in_table) {
 			// Find last search result in table
 			ItemTable *parent_table = static_cast<ItemTable *>(selection.from_frame->parent);
 			List<Item *>::Element *parent_element = p_search_previous ? parent_table->subitems.back() : parent_table->subitems.front();
@@ -6682,9 +6722,17 @@ bool RichTextLabel::search(const String &p_string, bool p_from_selection, bool p
 				ERR_FAIL_NULL_V(parent_element, false);
 			}
 
+			// Search remainder of current cell
+			int from_line = p_search_previous ? selection.from_line - 1 : selection.from_line + 1;
+			if (from_line >= 0 && _search_table_cell(parent_table, parent_element, p_string, p_search_previous, from_line)) {
+				scroll_to_selection();
+				queue_redraw();
+				return true;
+			}
+
 			// Search remainder of table
 			if (!(p_search_previous && parent_element == parent_table->subitems.front()) &&
-					parent_element != parent_table->subitems.back()) {
+					!(!p_search_previous && parent_element == parent_table->subitems.back())) {
 				parent_element = p_search_previous ? parent_element->prev() : parent_element->next(); // Don't want to search current item
 				ERR_FAIL_NULL_V(parent_element, false);
 
@@ -6697,7 +6745,10 @@ bool RichTextLabel::search(const String &p_string, bool p_from_selection, bool p
 			}
 		}
 
-		ending_line = selection.from_frame->line + selection.from_line;
+		ending_line = selection.from_frame->line;
+		if (!in_table) {
+			ending_line += selection.from_line;
+		}
 		current_line = p_search_previous ? ending_line - 1 : ending_line + 1;
 	} else if (p_search_previous) {
 		current_line = ending_line;
@@ -7584,7 +7635,7 @@ void RichTextLabel::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "progress_bar_delay", PROPERTY_HINT_NONE, "suffix:ms"), "set_progress_bar_delay", "get_progress_bar_delay");
 
 	ADD_GROUP("Text Selection", "");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "selection_enabled"), "set_selection_enabled", "is_selection_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "selection_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_selection_enabled", "is_selection_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "deselect_on_focus_loss_enabled"), "set_deselect_on_focus_loss_enabled", "is_deselect_on_focus_loss_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "drag_and_drop_selection_enabled"), "set_drag_and_drop_selection_enabled", "is_drag_and_drop_selection_enabled");
 
