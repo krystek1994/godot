@@ -16,9 +16,16 @@ public:
     //Vector<Vector<Point2>> jo();
 	void jo();
 	void _ready();
+	void fati(const String text);
 
 	Geometry2D *geo;
 };
+
+/*
+
+	Class Counted
+
+*/
 
 class Counted : public RefCounted {
 	GDCLASS(Counted, RefCounted);

@@ -1,4 +1,4 @@
-#include "node_4d.h"
+#include "node4d.h"
 #include "core/object/class_db.h"
 
 #include "core/math/geometry_2d.h"
@@ -38,6 +38,17 @@ void Node4D::jo()
     //p.append(Vector<Point2>({Point2(0, 0)}));
     //return p;
 }
+
+void Node4D::fati(const String text)
+{
+    print_line(text);
+}
+
+/*
+
+ Class Counted
+
+*/
 
 void Counted::_bind_methods()
 {

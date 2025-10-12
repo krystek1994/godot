@@ -2,7 +2,7 @@
 
 #include "core/object/class_db.h"
 
-#include "node_4d.h"
+#include "node4d.h"
 
 /*
 
